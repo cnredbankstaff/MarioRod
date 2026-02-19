@@ -1,0 +1,728 @@
+<!doctype html>
+<html lang="en" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flappy Powers</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Bangers&family=Nunito:wght@600;800&display=swap');
+    
+    html, body {
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+    }
+    
+    .game-font {
+      font-family: 'Bangers', cursive;
+    }
+    
+    .ui-font {
+      font-family: 'Nunito', sans-serif;
+    }
+    
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
+    }
+    
+    @keyframes pulse-glow {
+      0%, 100% { filter: drop-shadow(0 0 8px currentColor); }
+      50% { filter: drop-shadow(0 0 20px currentColor); }
+    }
+    
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    
+    .floating {
+      animation: float 2s ease-in-out infinite;
+    }
+    
+    .power-glow {
+      animation: pulse-glow 1s ease-in-out infinite;
+    }
+    
+    .shimmer-bg {
+      background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%);
+      background-size: 200% 100%;
+      animation: shimmer 2s linear infinite;
+    }
+    
+    .ghost-mode {
+      opacity: 0.6;
+      filter: hue-rotate(180deg) brightness(1.2);
+    }
+  </style>
+  <style>body { box-sizing: border-box; }</style>
+  <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
+ </head>
+ <body class="h-full">
+  <div id="game-container" class="w-full h-full relative overflow-hidden" style="background: linear-gradient(180deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);"><!-- Stars Background -->
+   <div id="stars" class="absolute inset-0 pointer-events-none"></div><!-- Game Canvas -->
+   <canvas id="gameCanvas" class="absolute inset-0 w-full h-full"></canvas><!-- UI Overlay -->
+   <div id="ui-overlay" class="absolute inset-0 pointer-events-none"><!-- Score Display -->
+    <div class="absolute top-4 left-4 right-4 flex justify-between items-start pointer-events-none">
+     <div class="bg-black/40 backdrop-blur-sm rounded-2xl px-4 py-2 border border-white/10">
+      <div class="text-white/60 ui-font text-xs uppercase tracking-wider">
+       Score
+      </div>
+      <div id="score-display" class="text-white game-font text-3xl">
+       0
+      </div>
+     </div><!-- Active Powers -->
+     <div id="active-powers" class="flex gap-2">
+     </div>
+    </div><!-- Game Title -->
+    <div id="title-screen" class="absolute inset-0 flex flex-col items-center justify-center">
+     <div class="text-center">
+      <h1 id="game-title" class="game-font text-6xl md:text-8xl text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 mb-4 floating" style="text-shadow: 0 0 40px rgba(168, 85, 247, 0.5);">Flappy Powers</h1>
+      <p class="ui-font text-white/70 text-lg mb-8">Collect abilities • Survive the pipes</p><!-- Power Info -->
+      <div class="flex flex-wrap justify-center gap-4 mb-8 max-w-lg mx-auto px-4">
+       <div class="bg-cyan-500/20 border border-cyan-400/30 rounded-xl px-4 py-3 flex items-center gap-3">
+        <div class="w-8 h-8 rounded-full bg-cyan-400 flex items-center justify-center text-lg">
+         👻
+        </div>
+        <div class="text-left">
+         <div class="text-cyan-300 ui-font font-bold text-sm">
+          Ghost
+         </div>
+         <div class="text-cyan-200/60 text-xs">
+          Pass through walls
+         </div>
+        </div>
+       </div>
+       <div class="bg-amber-500/20 border border-amber-400/30 rounded-xl px-4 py-3 flex items-center gap-3">
+        <div class="w-8 h-8 rounded-full bg-amber-400 flex items-center justify-center text-lg">
+         ⚡
+        </div>
+        <div class="text-left">
+         <div class="text-amber-300 ui-font font-bold text-sm">
+          Speed
+         </div>
+         <div class="text-amber-200/60 text-xs">
+          Move faster
+         </div>
+        </div>
+       </div>
+       <div class="bg-emerald-500/20 border border-emerald-400/30 rounded-xl px-4 py-3 flex items-center gap-3">
+        <div class="w-8 h-8 rounded-full bg-emerald-400 flex items-center justify-center text-lg">
+         🔮
+        </div>
+        <div class="text-left">
+         <div class="text-emerald-300 ui-font font-bold text-sm">
+          Shrink
+         </div>
+         <div class="text-emerald-200/60 text-xs">
+          Smaller pipes
+         </div>
+        </div>
+       </div>
+      </div><button id="start-btn" class="pointer-events-auto ui-font font-bold text-xl px-10 py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white rounded-full shadow-lg shadow-purple-500/30 transform hover:scale-105 transition-all duration-200"> Tap to Start </button> <button id="skins-btn" class="pointer-events-auto ui-font font-bold text-xl px-10 py-4 bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-400 hover:to-amber-400 text-white rounded-full shadow-lg shadow-yellow-500/30 transform hover:scale-105 transition-all duration-200 mt-3"> 🎨 Skins </button>
+      <p class="ui-font text-white/40 text-sm mt-4">Press SPACE or tap to flap</p>
+     </div>
+    </div><!-- Game Over Screen -->
+    <div id="gameover-screen" class="absolute inset-0 flex flex-col items-center justify-center hidden">
+     <div class="text-center bg-black/60 backdrop-blur-md rounded-3xl p-8 border border-white/10 mx-4">
+      <h2 class="game-font text-5xl text-red-400 mb-2">Game Over</h2>
+      <div class="ui-font text-white/60 mb-1">
+       Final Score
+      </div>
+      <div id="final-score" class="game-font text-6xl text-white mb-2">
+       0
+      </div>
+      <div id="high-score-display" class="ui-font text-amber-400 text-lg mb-6"><span class="text-white/40">Best:</span> <span id="high-score">0</span>
+      </div>
+      <div class="flex gap-3">
+       <button id="restart-btn" class="pointer-events-auto ui-font font-bold text-lg px-8 py-3 bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white rounded-full shadow-lg transform hover:scale-105 transition-all duration-200"> Play Again </button> <button id="menu-btn" class="pointer-events-auto ui-font font-bold text-lg px-8 py-3 bg-gradient-to-r from-slate-600 to-gray-700 hover:from-slate-500 hover:to-gray-600 text-white rounded-full shadow-lg transform hover:scale-105 transition-all duration-200"> Menu </button>
+      </div>
+     </div>
+    </div>
+   </div>
+  </div>
+  <script>
+    // Default configuration
+    const defaultConfig = {
+      game_title: 'Flappy Powers',
+      background_color: '#1a1a2e',
+      text_color: '#ffffff',
+      accent_color: '#a855f7',
+      surface_color: '#16213e',
+      button_color: '#9333ea'
+    };
+
+    let config = { ...defaultConfig };
+
+    // Initialize Element SDK
+    if (window.elementSdk) {
+      window.elementSdk.init({
+        defaultConfig,
+        onConfigChange: async (newConfig) => {
+          config = { ...defaultConfig, ...newConfig };
+          document.getElementById('game-title').textContent = config.game_title || defaultConfig.game_title;
+        },
+        mapToCapabilities: (cfg) => ({
+          recolorables: [
+            {
+              get: () => cfg.background_color || defaultConfig.background_color,
+              set: (v) => { cfg.background_color = v; window.elementSdk.setConfig({ background_color: v }); }
+            },
+            {
+              get: () => cfg.surface_color || defaultConfig.surface_color,
+              set: (v) => { cfg.surface_color = v; window.elementSdk.setConfig({ surface_color: v }); }
+            },
+            {
+              get: () => cfg.text_color || defaultConfig.text_color,
+              set: (v) => { cfg.text_color = v; window.elementSdk.setConfig({ text_color: v }); }
+            },
+            {
+              get: () => cfg.accent_color || defaultConfig.accent_color,
+              set: (v) => { cfg.accent_color = v; window.elementSdk.setConfig({ accent_color: v }); }
+            },
+            {
+              get: () => cfg.button_color || defaultConfig.button_color,
+              set: (v) => { cfg.button_color = v; window.elementSdk.setConfig({ button_color: v }); }
+            }
+          ],
+          borderables: [],
+          fontEditable: undefined,
+          fontSizeable: undefined
+        }),
+        mapToEditPanelValues: (cfg) => new Map([
+          ['game_title', cfg.game_title || defaultConfig.game_title]
+        ])
+      });
+    }
+
+    // Game variables
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    let gameState = 'menu'; // menu, playing, gameover
+    let score = 0;
+    let highScore = 0;
+    let animationId;
+    
+    // Bird properties
+    const bird = {
+      x: 0,
+      y: 0,
+      width: 40,
+      height: 30,
+      velocity: 0,
+      gravity: 0.5,
+      jump: -10,
+      rotation: 0
+    };
+    
+    // Game properties
+    let pipes = [];
+    let powerUps = [];
+    let particles = [];
+    let pipeSpeed = 3;
+    let pipeGap = 220;
+    let pipeWidth = 70;
+    let pipeSpawnTimer = 0;
+    let powerUpSpawnTimer = 0;
+    
+    // Active powers
+    let activePowers = {
+      ghost: { active: false, timer: 0, duration: 10000 },
+      speed: { active: false, timer: 0, duration: 8000 },
+      shrink: { active: false, timer: 0, duration: 12000 }
+    };
+    
+    // Power up types
+    const powerUpTypes = [
+      { type: 'ghost', color: '#22d3ee', emoji: '👻', name: 'Ghost' },
+      { type: 'speed', color: '#fbbf24', emoji: '⚡', name: 'Speed' },
+      { type: 'shrink', color: '#34d399', emoji: '🔮', name: 'Shrink' }
+    ];
+    
+    // Create stars
+    function createStars() {
+      const starsContainer = document.getElementById('stars');
+      starsContainer.innerHTML = '';
+      for (let i = 0; i < 50; i++) {
+        const star = document.createElement('div');
+        star.className = 'absolute rounded-full bg-white';
+        star.style.width = Math.random() * 3 + 1 + 'px';
+        star.style.height = star.style.width;
+        star.style.left = Math.random() * 100 + '%';
+        star.style.top = Math.random() * 100 + '%';
+        star.style.opacity = Math.random() * 0.7 + 0.3;
+        starsContainer.appendChild(star);
+      }
+    }
+    
+    // Resize canvas
+    function resizeCanvas() {
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+      bird.x = canvas.width * 0.2;
+      bird.y = canvas.height / 2;
+    }
+    
+    // Initialize game
+    function initGame() {
+      resizeCanvas();
+      createStars();
+      bird.y = canvas.height / 2;
+      bird.velocity = 0;
+      bird.rotation = 0;
+      pipes = [];
+      powerUps = [];
+      particles = [];
+      score = 0;
+      pipeSpawnTimer = 0;
+      powerUpSpawnTimer = 0;
+      pipeSpeed = 3;
+      pipeGap = 180;
+      
+      // Reset powers
+      Object.keys(activePowers).forEach(key => {
+        activePowers[key].active = false;
+        activePowers[key].timer = 0;
+      });
+      
+      updateScoreDisplay();
+      updateActivePowersUI();
+    }
+    
+    // Spawn pipe
+    function spawnPipe() {
+      const minGapY = 100;
+      const maxGapY = canvas.height - 100 - pipeGap;
+      const gapY = Math.random() * (maxGapY - minGapY) + minGapY;
+      
+      const currentGap = activePowers.shrink.active ? pipeGap * 1.5 : pipeGap;
+      
+      pipes.push({
+        x: canvas.width,
+        gapY: gapY,
+        gapHeight: currentGap,
+        width: pipeWidth,
+        passed: false,
+        shrunk: activePowers.shrink.active
+      });
+    }
+    
+    // Spawn power up
+    function spawnPowerUp() {
+      const type = powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)];
+      const y = Math.random() * (canvas.height - 200) + 100;
+      
+      powerUps.push({
+        x: canvas.width,
+        y: y,
+        radius: 25,
+        type: type.type,
+        color: type.color,
+        emoji: type.emoji,
+        name: type.name,
+        bobOffset: Math.random() * Math.PI * 2
+      });
+    }
+    
+    // Create particles
+    function createParticles(x, y, color, count = 10) {
+      for (let i = 0; i < count; i++) {
+        particles.push({
+          x: x,
+          y: y,
+          vx: (Math.random() - 0.5) * 8,
+          vy: (Math.random() - 0.5) * 8,
+          radius: Math.random() * 6 + 2,
+          color: color,
+          life: 1
+        });
+      }
+    }
+    
+    // Draw bird
+    function drawBird() {
+      ctx.save();
+      ctx.translate(bird.x, bird.y);
+      ctx.rotate(bird.rotation);
+      
+      // Ghost effect
+      if (activePowers.ghost.active) {
+        ctx.globalAlpha = 0.5 + Math.sin(Date.now() / 100) * 0.2;
+      }
+      
+      // Body
+      const gradient = ctx.createRadialGradient(0, 0, 5, 0, 0, bird.width / 2);
+      gradient.addColorStop(0, activePowers.ghost.active ? '#67e8f9' : '#fbbf24');
+      gradient.addColorStop(1, activePowers.ghost.active ? '#06b6d4' : '#f59e0b');
+      
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, bird.width / 2, bird.height / 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Wing
+      ctx.fillStyle = activePowers.ghost.active ? '#22d3ee' : '#fcd34d';
+      ctx.beginPath();
+      const wingFlap = Math.sin(Date.now() / 50) * 10;
+      ctx.ellipse(-5, wingFlap, 12, 8, -0.3, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Eye
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(10, -5, 8, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.fillStyle = '#1a1a2e';
+      ctx.beginPath();
+      ctx.arc(12, -5, 4, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Beak
+      ctx.fillStyle = '#f97316';
+      ctx.beginPath();
+      ctx.moveTo(18, 0);
+      ctx.lineTo(28, 2);
+      ctx.lineTo(18, 6);
+      ctx.closePath();
+      ctx.fill();
+      
+      // Speed trails
+      if (activePowers.speed.active) {
+        ctx.globalAlpha = 0.3;
+        for (let i = 1; i <= 3; i++) {
+          ctx.fillStyle = '#fbbf24';
+          ctx.beginPath();
+          ctx.ellipse(-i * 15, 0, bird.width / 2 - i * 5, bird.height / 2 - i * 3, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      
+      ctx.restore();
+    }
+    
+    // Draw pipes
+    function drawPipes() {
+      pipes.forEach(pipe => {
+        const pipeColor = pipe.shrunk ? '#34d399' : '#a855f7';
+        const pipeColorDark = pipe.shrunk ? '#059669' : '#7c3aed';
+        
+        // Top pipe
+        const gradientTop = ctx.createLinearGradient(pipe.x, 0, pipe.x + pipe.width, 0);
+        gradientTop.addColorStop(0, pipeColorDark);
+        gradientTop.addColorStop(0.5, pipeColor);
+        gradientTop.addColorStop(1, pipeColorDark);
+        
+        ctx.fillStyle = gradientTop;
+        ctx.fillRect(pipe.x, 0, pipe.width, pipe.gapY);
+        
+        // Top pipe cap
+        ctx.fillRect(pipe.x - 5, pipe.gapY - 30, pipe.width + 10, 30);
+        
+        // Bottom pipe
+        const bottomY = pipe.gapY + pipe.gapHeight;
+        ctx.fillRect(pipe.x, bottomY, pipe.width, canvas.height - bottomY);
+        
+        // Bottom pipe cap
+        ctx.fillRect(pipe.x - 5, bottomY, pipe.width + 10, 30);
+        
+        // Highlights
+        ctx.fillStyle = 'rgba(255,255,255,0.2)';
+        ctx.fillRect(pipe.x + 5, 0, 8, pipe.gapY - 30);
+        ctx.fillRect(pipe.x + 5, bottomY + 30, 8, canvas.height - bottomY - 30);
+      });
+    }
+    
+    // Draw power ups
+    function drawPowerUps() {
+      const time = Date.now() / 1000;
+      
+      powerUps.forEach(pu => {
+        const bobY = Math.sin(time * 3 + pu.bobOffset) * 8;
+        
+        ctx.save();
+        ctx.translate(pu.x, pu.y + bobY);
+        
+        // Glow
+        ctx.shadowColor = pu.color;
+        ctx.shadowBlur = 20;
+        
+        // Outer ring
+        ctx.strokeStyle = pu.color;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, 0, pu.radius + 5, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        // Inner circle
+        const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, pu.radius);
+        gradient.addColorStop(0, pu.color);
+        gradient.addColorStop(1, pu.color + '80');
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(0, 0, pu.radius, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Emoji
+        ctx.shadowBlur = 0;
+        ctx.font = '24px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(pu.emoji, 0, 0);
+        
+        ctx.restore();
+      });
+    }
+    
+    // Draw particles
+    function drawParticles() {
+      particles.forEach(p => {
+        ctx.globalAlpha = p.life;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius * p.life, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.globalAlpha = 1;
+    }
+    
+    // Update game
+    function update(deltaTime) {
+      if (gameState !== 'playing') return;
+      
+      const speedMultiplier = activePowers.speed.active ? 1.5 : 1;
+      
+      // Bird physics
+      bird.velocity += bird.gravity;
+      bird.y += bird.velocity;
+      bird.rotation = Math.min(Math.max(bird.velocity * 0.05, -0.5), 0.5);
+      
+      // Update pipe spawn timer
+      pipeSpawnTimer += deltaTime * speedMultiplier;
+      if (pipeSpawnTimer > 1800) {
+        spawnPipe();
+        pipeSpawnTimer = 0;
+      }
+      
+      // Update power up spawn timer
+      powerUpSpawnTimer += deltaTime;
+      if (powerUpSpawnTimer > 4000 + Math.random() * 2000) {
+        spawnPowerUp();
+        powerUpSpawnTimer = 0;
+      }
+      
+      // Update pipes
+      const currentSpeed = pipeSpeed * speedMultiplier;
+      pipes.forEach(pipe => {
+        pipe.x -= currentSpeed;
+        
+        // Score
+        if (!pipe.passed && pipe.x + pipe.width < bird.x) {
+          pipe.passed = true;
+          score++;
+          updateScoreDisplay();
+          createParticles(bird.x, bird.y, '#a855f7', 5);
+        }
+        
+        // Collision detection (skip if ghost mode)
+        if (!activePowers.ghost.active) {
+          const birdLeft = bird.x - bird.width / 2 + 5;
+          const birdRight = bird.x + bird.width / 2 - 5;
+          const birdTop = bird.y - bird.height / 2 + 5;
+          const birdBottom = bird.y + bird.height / 2 - 5;
+          
+          if (birdRight > pipe.x && birdLeft < pipe.x + pipe.width) {
+            if (birdTop < pipe.gapY || birdBottom > pipe.gapY + pipe.gapHeight) {
+              gameOver();
+            }
+          }
+        }
+      });
+      
+      // Remove off-screen pipes
+      pipes = pipes.filter(pipe => pipe.x + pipe.width > 0);
+      
+      // Update power ups
+      powerUps.forEach(pu => {
+        pu.x -= currentSpeed * 0.8;
+        
+        // Collection detection
+        const dx = bird.x - pu.x;
+        const dy = bird.y - pu.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        if (dist < bird.width / 2 + pu.radius) {
+          activatePower(pu.type);
+          createParticles(pu.x, pu.y, pu.color, 15);
+          pu.collected = true;
+        }
+      });
+      
+      // Remove collected/off-screen power ups
+      powerUps = powerUps.filter(pu => !pu.collected && pu.x + pu.radius > 0);
+      
+      // Update particles
+      particles.forEach(p => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life -= 0.02;
+      });
+      particles = particles.filter(p => p.life > 0);
+      
+      // Update active powers
+      Object.keys(activePowers).forEach(key => {
+        if (activePowers[key].active) {
+          activePowers[key].timer -= deltaTime;
+          if (activePowers[key].timer <= 0) {
+            activePowers[key].active = false;
+            updateActivePowersUI();
+          }
+        }
+      });
+      
+      // Boundary check
+      if (bird.y > canvas.height - bird.height / 2 || bird.y < bird.height / 2) {
+        if (!activePowers.ghost.active) {
+          gameOver();
+        } else {
+          // Bounce in ghost mode
+          bird.y = Math.max(bird.height / 2, Math.min(canvas.height - bird.height / 2, bird.y));
+          bird.velocity *= -0.5;
+        }
+      }
+      
+      // Increase difficulty
+      pipeSpeed = 3 + score * 0.05;
+    }
+    
+    // Activate power
+    function activatePower(type) {
+      activePowers[type].active = true;
+      activePowers[type].timer = activePowers[type].duration;
+      updateActivePowersUI();
+    }
+    
+    // Update active powers UI
+    function updateActivePowersUI() {
+      const container = document.getElementById('active-powers');
+      container.innerHTML = '';
+      
+      Object.keys(activePowers).forEach(key => {
+        if (activePowers[key].active) {
+          const powerInfo = powerUpTypes.find(p => p.type === key);
+          const timeLeft = Math.ceil(activePowers[key].timer / 1000);
+          
+          const div = document.createElement('div');
+          div.className = 'bg-black/40 backdrop-blur-sm rounded-xl px-3 py-2 border flex items-center gap-2';
+          div.style.borderColor = powerInfo.color + '50';
+          div.innerHTML = `
+            <span class="text-xl">${powerInfo.emoji}</span>
+            <span class="ui-font font-bold text-white text-sm">${timeLeft}s</span>
+          `;
+          container.appendChild(div);
+        }
+      });
+    }
+    
+    // Draw game
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      drawPipes();
+      drawPowerUps();
+      drawParticles();
+      drawBird();
+    }
+    
+    // Game loop
+    let lastTime = 0;
+    function gameLoop(timestamp) {
+      const deltaTime = timestamp - lastTime;
+      lastTime = timestamp;
+      
+      update(deltaTime);
+      draw();
+      
+      animationId = requestAnimationFrame(gameLoop);
+    }
+    
+    // Update score display
+    function updateScoreDisplay() {
+      document.getElementById('score-display').textContent = score;
+    }
+    
+    // Game over
+    function gameOver() {
+      gameState = 'gameover';
+      
+      if (score > highScore) {
+        highScore = score;
+      }
+      
+      document.getElementById('final-score').textContent = score;
+      document.getElementById('high-score').textContent = highScore;
+      document.getElementById('gameover-screen').classList.remove('hidden');
+    }
+    
+    // Start game
+    function startGame() {
+      initGame();
+      gameState = 'playing';
+      document.getElementById('title-screen').classList.add('hidden');
+      document.getElementById('gameover-screen').classList.add('hidden');
+    }
+    
+    // Flap
+    function flap() {
+      if (gameState === 'playing') {
+        bird.velocity = bird.jump;
+        createParticles(bird.x - 20, bird.y, '#fbbf24', 3);
+      }
+    }
+    
+    // Event listeners
+    document.getElementById('start-btn').addEventListener('click', startGame);
+    document.getElementById('restart-btn').addEventListener('click', startGame);
+    document.getElementById('menu-btn').addEventListener('click', () => {
+      gameState = 'menu';
+      document.getElementById('gameover-screen').classList.add('hidden');
+      document.getElementById('title-screen').classList.remove('hidden');
+    });
+    
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (gameState === 'menu') {
+          startGame();
+        } else if (gameState === 'playing') {
+          flap();
+        } else if (gameState === 'gameover') {
+          startGame();
+        }
+      }
+    });
+    
+    canvas.addEventListener('click', () => {
+      if (gameState === 'playing') {
+        flap();
+      }
+    });
+    
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      if (gameState === 'playing') {
+        flap();
+      }
+    });
+    
+    window.addEventListener('resize', resizeCanvas);
+    
+    // Initialize
+    initGame();
+    gameLoop(0);
+  </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9d0970f6d0364b05',t:'MTc3MTU0MjY2NC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
